@@ -12,13 +12,10 @@ router.use((req, res, next) => {
     res.redirect('/login');
   });
 
-router.get('/dashboard', (req, res, next) => {
-  res.render('laundry/dashboard');1
-});
 
 router.get('/dashboard', (req, res, next) => {
     let query;
-  
+    console.log('in dashboard')
     if (req.session.currentUser.isLaunderer) {
       query = { launderer: req.session.currentUser._id };
     } else {
@@ -35,8 +32,9 @@ router.get('/dashboard', (req, res, next) => {
           next(err);
           return;
         }
-  
+        console.log('pickups: ', pickupDocs)
         res.render('laundry/dashboard', {
+
           pickups: pickupDocs
         });
       });
