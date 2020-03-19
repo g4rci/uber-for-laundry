@@ -5,11 +5,15 @@ var express = require('express');
 var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
-
 const bodyParser = require('body-parser');
 const favicon = require('serve-favicon');
 const hbs = require('hbs');
 const mongoose = require('mongoose');
+const app = express();
+const session = require('express-session');
+const MongoStore = require('connect-mongo')(session);
+const laundryRoutes = require('./routes/laundry');
+
 
 mongoose
   .connect('mongodb://localhost/uber-for-loundry', {
@@ -25,12 +29,35 @@ mongoose
     console.error('Error connecting to mongo', err);
   });
 
+
+
+const authRoutes = require('./routes/auth');
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
-var app = express();
 
 // view engine setup
+app.use(session({
+  secret: 'never do your own laundry again',
+  resave: true,
+  saveUninitialized: true,
+  cookie: { maxAge: 60000 },
+  store: new MongoStore({
+    mongooseConnection: mongoose.connection,
+    ttl: 24 * 60 * 60 // 1 day
+  })
+}));
+
+app.use((req, res, next) => {
+  if (req.session.currentUser) {
+    res.locals.currentUserInfo = req.session.currentUser;
+    res.locals.isUserLoggedIn = true;
+  } else {
+    res.locals.isUserLoggedIn = false;
+  }
+  
+  next();
+});
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'hbs');
 
@@ -47,9 +74,15 @@ app.use(favicon(path.join(__dirname, 'public', 'images', 'favicon.ico')));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
+
+
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
-
+app.use('/auth', authRoutes);
+app.use('/laundry', laundryRoutes);
+app.use('/', indexRouter);
+app.use('/', authRoutes);
+app.use('/', laundryRoutes);
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
   next(createError(404));
